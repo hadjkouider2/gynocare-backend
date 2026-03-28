@@ -4,91 +4,127 @@ const bcrypt = require('bcryptjs');
 const pool = require('./db');
 
 const app = express();
-const PORT = 8000;
+const PORT = process.env.PORT || 8000;
 
 app.use(cors());
 app.use(express.json());
 
-const users = [];
+// ==================== AUTHENTIFICATION ====================
 
+// Route d'inscription
 app.post('/api/v1/auth/register', async (req, res) => {
-  console.log('Register attempt:', req.body.email);
+  console.log('📝 Inscription:', req.body.email);
   
-  const { email, password, fullName } = req.body;
+  const { email, password, fullName, role = 'doctor' } = req.body;
   
-  const existingUser = users.find(u => u.email === email);
-  if (existingUser) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Cet email est deja utilise' 
+  try {
+    // Vérifier si l'utilisateur existe déjà
+    const existingUser = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cet email est déjà utilisé'
+      });
+    }
+    
+    // Hasher le mot de passe
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Créer l'utilisateur
+    const result = await pool.query(
+      'INSERT INTO users (email, password, full_name, role) VALUES ($1, $2, $3, $4) RETURNING id, email, full_name',
+      [email, hashedPassword, fullName, role]
+    );
+    
+    const newUser = result.rows[0];
+    console.log('✅ Utilisateur créé:', newUser.email);
+    
+    res.json({
+      success: true,
+      message: 'Inscription réussie',
+      user: newUser
+    });
+    
+  } catch (err) {
+    console.error('❌ Erreur inscription:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur'
     });
   }
-  
-  const hashedPassword = await bcrypt.hash(password, 10);
-  
-  const newUser = {
-    id: users.length + 1,
-    email,
-    fullName,
-    password: hashedPassword,
-    createdAt: new Date()
-  };
-  
-  users.push(newUser);
-  
-  console.log('User created:', newUser.email);
-  
-  res.json({
-    success: true,
-    message: 'Inscription reussie',
-    user: {
-      id: newUser.id,
-      email: newUser.email,
-      fullName: newUser.fullName
-    }
-  });
 });
 
+// Route de connexion
 app.post('/api/v1/auth/login', async (req, res) => {
-  console.log('Login attempt:', req.body.email);
+  console.log('🔑 Connexion:', req.body.email);
   
   const { email, password } = req.body;
   
-  const user = users.find(u => u.email === email);
-  if (!user) {
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Email ou mot de passe incorrect' 
-    });
-  }
-  
-  const isValid = await bcrypt.compare(password, user.password);
-  if (!isValid) {
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Email ou mot de passe incorrect' 
-    });
-  }
-  
-  console.log('Login success:', user.email);
-  
-  res.json({
-    success: true,
-    message: 'Connexion reussie',
-    user: {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName
+  try {
+    const result = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+    
+    const user = result.rows[0];
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Email ou mot de passe incorrect'
+      });
     }
-  });
+    
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Email ou mot de passe incorrect'
+      });
+    }
+    
+    console.log('✅ Connexion réussie:', user.email);
+    
+    res.json({
+      success: true,
+      message: 'Connexion réussie',
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        role: user.role
+      }
+    });
+    
+  } catch (err) {
+    console.error('❌ Erreur connexion:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur'
+    });
+  }
 });
 
-app.get('/api/v1', (req, res) => {
-  res.json({ 
-    message: 'API GynoCare works!',
-    status: 'ok',
-    usersCount: users.length
-  });
+// Route de test
+app.get('/api/v1', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT COUNT(*) FROM users');
+    const count = result.rows[0].count;
+    res.json({
+      message: 'API GynoCare works!',
+      status: 'ok',
+      usersCount: parseInt(count)
+    });
+  } catch (err) {
+    res.json({
+      message: 'API GynoCare works!',
+      status: 'ok',
+      usersCount: 0
+    });
+  }
 });
 
 // ==================== PATIENTS ====================
@@ -182,6 +218,18 @@ app.post('/api/v1/consultations', async (req, res) => {
 });
 
 // ==================== RENDEZ-VOUS ====================
+
+// Récupérer tous les rendez-vous (pour le dashboard)
+app.get('/api/v1/appointments', async (req, res) => {
+  try {
+    // Pour l'instant, retourner une liste vide
+    // Plus tard, vous pourrez filtrer par médecin connecté
+    res.json([]);
+  } catch (err) {
+    console.error('❌ Erreur:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 // Récupérer les rendez-vous d'un médecin
 app.get('/api/v1/appointments/doctor/:doctorId', async (req, res) => {
@@ -363,7 +411,9 @@ app.patch('/api/v1/notifications/:id/read', async (req, res) => {
   }
 });
 
+// ==================== DÉMARRAGE ====================
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log('Server started on http://localhost:' + PORT);
-  console.log('Accessible on: http://192.168.1.97:' + PORT);
+  console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
+  console.log(`📱 Accessible sur le réseau: http://192.168.1.97:${PORT}`);
 });
