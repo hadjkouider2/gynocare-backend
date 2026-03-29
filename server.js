@@ -220,11 +220,17 @@ app.post('/api/v1/consultations', async (req, res) => {
 // ==================== RENDEZ-VOUS ====================
 
 // Récupérer tous les rendez-vous (pour le dashboard)
+// Récupérer tous les rendez-vous
 app.get('/api/v1/appointments', async (req, res) => {
   try {
-    // Pour l'instant, retourner une liste vide
-    // Plus tard, vous pourrez filtrer par médecin connecté
-    res.json([]);
+    const result = await pool.query(`
+      SELECT a.*, u.full_name as patient_name
+      FROM appointments a
+      JOIN patients p ON a.patient_id = p.id
+      JOIN users u ON p.user_id = u.id
+      ORDER BY a.date ASC
+    `);
+    res.json(result.rows);
   } catch (err) {
     console.error('❌ Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
