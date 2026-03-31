@@ -418,7 +418,73 @@ app.patch('/api/v1/notifications/:id/read', async (req, res) => {
 });
 
 // ==================== DÉMARRAGE ====================
+// ==================== DÉTAILS PATIENT (HISTORIQUE MÉDICAL) ====================
+app.get('/api/v1/patients/:id/details', async (req, res) => {
+  try {
+    const patientId = req.params.id;
+    
+    const patientInfo = await pool.query(
+      'SELECT p.*, u.email, u.full_name, u.created_at FROM patients p JOIN users u ON p.user_id = u.id WHERE p.id = $1',
+      [patientId]
+    );
+    
+    if (patientInfo.rows.length === 0) {
+      return res.status(404).json({ error: 'Patient non trouvé' });
+    }
+    
+    const consultations = await pool.query(
+      'SELECT c.*, u.full_name as doctor_name FROM consultations c JOIN users u ON c.doctor_id = u.id WHERE c.patient_id = $1 ORDER BY c.date DESC LIMIT 10',
+      [patientId]
+    );
+    
+    const prescriptions = await pool.query(
+      'SELECT p.*, u.full_name as doctor_name FROM prescriptions p JOIN users u ON p.doctor_id = u.id WHERE p.patient_id = $1 ORDER BY p.date DESC LIMIT 5',
+      [patientId]
+    );
+    
+    const appointments = await pool.query(
+      'SELECT a.* FROM appointments a WHERE a.patient_id = $1 ORDER BY a.date DESC LIMIT 5',
+      [patientId]
+    );
+    
+    res.json({
+      success: true,
+      patient: patientInfo.rows[0],
+      consultations: consultations.rows,
+      prescriptions: prescriptions.rows,
+      appointments: appointments.rows
+    });
+  } catch (err) {
+    console.error('Erreur détails patient:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
+// Route pour créer une consultation
+app.post('/api/v1/consultations/with-details', async (req, res) => {
+  const { patientId, doctorId, date, reason, diagnosis, prescription, notes } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO consultations (patient_id, doctor_id, date, reason, diagnosis, prescription, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [patientId, doctorId, date, reason, diagnosis, prescription, notes]
+    );
+    
+    const patient = await pool.query(
+      'SELECT u.full_name FROM patients p JOIN users u ON p.user_id = u.id WHERE p.id = $1',
+      [patientId]
+    );
+    
+    res.status(201).json({
+      success: true,
+      message: 'Consultation ajoutée',
+      consultation: result.rows[0],
+      patientName: patient.rows[0]?.full_name
+    });
+  } catch (err) {
+    console.error('Erreur:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`?? Serveur démarré sur http://localhost:${PORT}`);
   console.log(`?? Accessible sur le réseau: http://192.168.1.97:${PORT}`);
