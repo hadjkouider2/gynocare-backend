@@ -417,6 +417,114 @@ app.patch('/api/v1/notifications/:id/read', async (req, res) => {
   }
 });
 
+// ==================== ROUTES TEMPORAIRES ADMIN ====================
+// À SUPPRIMER APRÈS UTILISATION
+
+// Route pour voir les tables
+app.get('/api/show-tables', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      ORDER BY table_name;
+    `);
+    res.json({
+      success: true,
+      tables: result.rows.map(r => r.table_name)
+    });
+  } catch (err) {
+    console.error('❌ Erreur:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Route pour créer un admin
+app.post('/api/create-admin', async (req, res) => {
+  console.log('👑 Création admin...');
+  
+  try {
+    const adminEmail = 'admin@gynocare.fr';
+    const adminPassword = 'GynocareAdmin2024!';
+    const adminFullName = 'Dr. Administrateur';
+    
+    // Vérifier si l'utilisateur existe déjà
+    const existingUser = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [adminEmail]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      // Mettre à jour le rôle en admin
+      await pool.query(
+        'UPDATE users SET role = $1 WHERE email = $2',
+        ['admin', adminEmail]
+      );
+      
+      return res.json({
+        success: true,
+        message: 'Admin déjà existant, rôle mis à jour',
+        user: existingUser.rows[0],
+        credentials: {
+          email: adminEmail,
+          password: adminPassword
+        }
+      });
+    }
+    
+    // Hasher le mot de passe
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    
+    // Créer l'admin
+    const result = await pool.query(
+      `INSERT INTO users (email, password, full_name, role) 
+       VALUES ($1, $2, $3, 'admin') 
+       RETURNING id, email, full_name, role`,
+      [adminEmail, hashedPassword, adminFullName]
+    );
+    
+    console.log('✅ Admin créé:', adminEmail);
+    
+    res.json({
+      success: true,
+      message: 'Admin créé avec succès !',
+      credentials: {
+        email: adminEmail,
+        password: adminPassword
+      },
+      user: result.rows[0]
+    });
+    
+  } catch (err) {
+    console.error('❌ Erreur:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// Route pour lister tous les utilisateurs
+app.get('/api/list-users', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, email, full_name, role FROM users ORDER BY id'
+    );
+    res.json({
+      success: true,
+      count: result.rows.length,
+      users: result.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Route de test simple
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API GynoCare fonctionne !', timestamp: new Date().toISOString() });
+});
+
 // ==================== DÉMARRAGE ====================
 
 app.listen(PORT, '0.0.0.0', () => {
