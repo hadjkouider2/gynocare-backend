@@ -1,4 +1,4 @@
-ï»¿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const pool = require('./db');
@@ -13,12 +13,12 @@ app.use(express.json());
 
 // Route d'inscription
 app.post('/api/v1/auth/register', async (req, res) => {
-  console.log('ðŸ“ Inscription:', req.body.email);
+  console.log('?? Inscription:', req.body.email);
   
   const { email, password, fullName, role = 'doctor' } = req.body;
   
   try {
-    // VÃ©rifier si l'utilisateur existe dÃ©jÃ 
+    // Vérifier si l'utilisateur existe déjà
     const existingUser = await pool.query(
       'SELECT * FROM users WHERE email = $1',
       [email]
@@ -27,30 +27,30 @@ app.post('/api/v1/auth/register', async (req, res) => {
     if (existingUser.rows.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Cet email est dÃ©jÃ  utilisÃ©'
+        message: 'Cet email est déjà utilisé'
       });
     }
     
     // Hasher le mot de passe
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // CrÃ©er l'utilisateur
+    // Créer l'utilisateur
     const result = await pool.query(
       'INSERT INTO users (email, password, full_name, role) VALUES ($1, $2, $3, $4) RETURNING id, email, full_name',
       [email, hashedPassword, fullName, role]
     );
     
     const newUser = result.rows[0];
-    console.log('âœ… Utilisateur crÃ©Ã©:', newUser.email);
+    console.log('? Utilisateur créé:', newUser.email);
     
     res.json({
       success: true,
-      message: 'Inscription rÃ©ussie',
+      message: 'Inscription réussie',
       user: newUser
     });
     
   } catch (err) {
-    console.error('âŒ Erreur inscription:', err);
+    console.error('? Erreur inscription:', err);
     res.status(500).json({
       success: false,
       message: 'Erreur serveur'
@@ -60,7 +60,7 @@ app.post('/api/v1/auth/register', async (req, res) => {
 
 // Route de connexion
 app.post('/api/v1/auth/login', async (req, res) => {
-  console.log('ðŸ”‘ Connexion:', req.body.email);
+  console.log('?? Connexion:', req.body.email);
   
   const { email, password } = req.body;
   
@@ -86,11 +86,11 @@ app.post('/api/v1/auth/login', async (req, res) => {
       });
     }
     
-    console.log('âœ… Connexion rÃ©ussie:', user.email);
+    console.log('? Connexion réussie:', user.email);
     
     res.json({
       success: true,
-      message: 'Connexion rÃ©ussie',
+      message: 'Connexion réussie',
       user: {
         id: user.id,
         email: user.email,
@@ -100,7 +100,7 @@ app.post('/api/v1/auth/login', async (req, res) => {
     });
     
   } catch (err) {
-    console.error('âŒ Erreur connexion:', err);
+    console.error('? Erreur connexion:', err);
     res.status(500).json({
       success: false,
       message: 'Erreur serveur'
@@ -129,7 +129,7 @@ app.get('/api/v1', async (req, res) => {
 
 // ==================== PATIENTS ====================
 
-// RÃ©cupÃ©rer tous les patients
+// Récupérer tous les patients
 app.get('/api/v1/patients', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -141,12 +141,12 @@ app.get('/api/v1/patients', async (req, res) => {
     `);
     res.json(result.rows);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
-// RÃ©cupÃ©rer un patient par ID
+// Récupérer un patient par ID
 app.get('/api/v1/patients/:id', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -157,16 +157,16 @@ app.get('/api/v1/patients/:id', async (req, res) => {
     `, [req.params.id]);
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Patient non trouvÃ©' });
+      return res.status(404).json({ error: 'Patient non trouvé' });
     }
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
-// CrÃ©er un patient
+// Créer un patient
 app.post('/api/v1/patients', async (req, res) => {
   const { userId, phone, birthDate, bloodType, allergies, chronicDiseases, surgeries, familyHistory } = req.body;
   try {
@@ -177,14 +177,14 @@ app.post('/api/v1/patients', async (req, res) => {
     `, [userId, phone, birthDate, bloodType, allergies, chronicDiseases, surgeries, familyHistory]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
 // ==================== CONSULTATIONS ====================
 
-// RÃ©cupÃ©rer les consultations d'un patient
+// Récupérer les consultations d'un patient
 app.get('/api/v1/patients/:patientId/consultations', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -196,7 +196,7 @@ app.get('/api/v1/patients/:patientId/consultations', async (req, res) => {
     `, [req.params.patientId]);
     res.json(result.rows);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -212,15 +212,15 @@ app.post('/api/v1/consultations', async (req, res) => {
     `, [patientId, doctorId, date, reason, diagnosis, prescription, notes]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
 // ==================== RENDEZ-VOUS ====================
 
-// RÃ©cupÃ©rer tous les rendez-vous (pour le dashboard)
-// RÃ©cupÃ©rer tous les rendez-vous
+// Récupérer tous les rendez-vous (pour le dashboard)
+// Récupérer tous les rendez-vous
 app.get('/api/v1/appointments', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -232,12 +232,12 @@ app.get('/api/v1/appointments', async (req, res) => {
     `);
     res.json(result.rows);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
-// RÃ©cupÃ©rer les rendez-vous d'un mÃ©decin
+// Récupérer les rendez-vous d'un médecin
 app.get('/api/v1/appointments/doctor/:doctorId', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -250,12 +250,12 @@ app.get('/api/v1/appointments/doctor/:doctorId', async (req, res) => {
     `, [req.params.doctorId]);
     res.json(result.rows);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
-// CrÃ©er un rendez-vous
+// Créer un rendez-vous
 app.post('/api/v1/appointments', async (req, res) => {
   const { patientId, doctorId, date, duration, reason } = req.body;
   try {
@@ -266,12 +266,12 @@ app.post('/api/v1/appointments', async (req, res) => {
     `, [patientId, doctorId, date, duration, reason]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
-// Mettre Ã  jour le statut d'un rendez-vous
+// Mettre à jour le statut d'un rendez-vous
 app.patch('/api/v1/appointments/:id/status', async (req, res) => {
   const { status } = req.body;
   try {
@@ -280,14 +280,14 @@ app.patch('/api/v1/appointments/:id/status', async (req, res) => {
     `, [status, req.params.id]);
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
 // ==================== MESSAGES (CHAT) ====================
 
-// RÃ©cupÃ©rer les messages entre un mÃ©decin et un patient
+// Récupérer les messages entre un médecin et un patient
 app.get('/api/v1/messages/:doctorId/:patientId', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -297,7 +297,7 @@ app.get('/api/v1/messages/:doctorId/:patientId', async (req, res) => {
     `, [req.params.doctorId, req.params.patientId, req.params.patientId, req.params.doctorId]);
     res.json(result.rows);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -313,14 +313,14 @@ app.post('/api/v1/messages', async (req, res) => {
     `, [senderId, receiverId, patientId, message, fileUrl, fileType]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
 // ==================== PRESCRIPTIONS ====================
 
-// RÃ©cupÃ©rer les prescriptions d'un patient
+// Récupérer les prescriptions d'un patient
 app.get('/api/v1/prescriptions/patient/:patientId', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -332,12 +332,12 @@ app.get('/api/v1/prescriptions/patient/:patientId', async (req, res) => {
     `, [req.params.patientId]);
     res.json(result.rows);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
-// CrÃ©er une prescription
+// Créer une prescription
 app.post('/api/v1/prescriptions', async (req, res) => {
   const { patientId, doctorId, medications, dosage, duration, notes, pdfUrl } = req.body;
   try {
@@ -348,14 +348,14 @@ app.post('/api/v1/prescriptions', async (req, res) => {
     `, [patientId, doctorId, medications, dosage, duration, notes, pdfUrl]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
 // ==================== GROSSESSES ====================
 
-// RÃ©cupÃ©rer les grossesses d'une patiente
+// Récupérer les grossesses d'une patiente
 app.get('/api/v1/pregnancies/patient/:patientId', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -365,7 +365,7 @@ app.get('/api/v1/pregnancies/patient/:patientId', async (req, res) => {
     `, [req.params.patientId]);
     res.json(result.rows);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -381,14 +381,14 @@ app.post('/api/v1/pregnancies', async (req, res) => {
     `, [patientId, startDate, dueDate, notes]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
 // ==================== NOTIFICATIONS ====================
 
-// RÃ©cupÃ©rer les notifications d'un utilisateur
+// Récupérer les notifications d'un utilisateur
 app.get('/api/v1/notifications/:userId', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -399,7 +399,7 @@ app.get('/api/v1/notifications/:userId', async (req, res) => {
     `, [req.params.userId]);
     res.json(result.rows);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -412,14 +412,14 @@ app.patch('/api/v1/notifications/:id/read', async (req, res) => {
     `, [req.params.id]);
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('âŒ Erreur:', err);
+    console.error('? Erreur:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
-// ==================== DÃ‰MARRAGE ====================
+// ==================== DÉMARRAGE ====================
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`ðŸš€ Serveur dÃ©marrÃ© sur http://localhost:${PORT}`);
-  console.log(`ðŸ“± Accessible sur le rÃ©seau: http://192.168.1.97:${PORT}`);
+  console.log(`?? Serveur démarré sur http://localhost:${PORT}`);
+  console.log(`?? Accessible sur le réseau: http://192.168.1.97:${PORT}`);
 });
