@@ -531,3 +531,23 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
   console.log(`📱 Accessible sur le réseau: http://192.168.1.97:${PORT}`);
 });
+app.get('/api/create-new-admin', async (req, res) => {
+  try {
+    const email = 'admin@gynocare.fr';
+    const password = 'Admin123456!';
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    await pool.query(
+      'INSERT INTO users (email, password, full_name, role) VALUES ($1, $2, $3, $4) ON CONFLICT (email) DO UPDATE SET password = $2, role = $4',
+      [email, hashedPassword, 'Super Administrateur', 'admin']
+    );
+    
+    res.json({ 
+      success: true, 
+      message: 'Admin créé/mis à jour',
+      credentials: { email, password }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
